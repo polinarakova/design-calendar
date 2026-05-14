@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Календарь событий — Design Team</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #111113; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 32px 20px 48px; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; gap: 16px; flex-wrap: wrap; }
+  .title { font-size: 26px; color: #fff; font-weight: 400; line-height: 1.3; }
+  .title b { font-weight: 700; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding-top: 6px; }
+  .ldot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; flex-shrink: 0; }
+  .litem { font-size: 12px; color: #777; display: flex; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 8px; }
+  .card { background: #1e1e20; border-radius: 14px; padding: 14px 12px 12px; min-height: 110px; display: flex; flex-direction: column; gap: 8px; }
+  .mname { font-size: 10px; font-weight: 600; color: #4a4a4e; text-transform: uppercase; letter-spacing: 0.09em; }
+  .events { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .tag { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 6px 3px 8px; border-radius: 5px; width: 100%; }
+  .tag-label { flex: 1; line-height: 1.3; }
+  .tag-del { background: none; border: none; cursor: pointer; opacity: 0; font-size: 14px; line-height: 1; padding: 0 1px; border-radius: 3px; transition: opacity 0.15s; flex-shrink: 0; }
+  .tag:hover .tag-del { opacity: 0.7; }
+  .tag-del:hover { opacity: 1 !important; }
+  .tag-strategy { background: #2563EB; color: #fff; }
+  .tag-strategy .tag-del { color: #93c5fd; }
+  .tag-perf { background: #EA580C; color: #fff; }
+  .tag-perf .tag-del { color: #fed7aa; }
+  .tag-process { background: #16A34A; color: #fff; }
+  .tag-process .tag-del { color: #86efac; }
+  .tag-demo { background: #b5d60a; color: #1a2500; }
+  .tag-demo .tag-del { color: #3a5000; }
+  .add-btn { background: none; border: 1.5px dashed #2e2e30; border-radius: 6px; color: #444; font-size: 18px; cursor: pointer; padding: 2px 0; width: 100%; transition: border-color 0.15s, color 0.15s; line-height: 1.4; }
+  .add-btn:hover { border-color: #555; color: #999; }
+
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #1e1e20; border-radius: 18px; padding: 24px; width: 300px; display: flex; flex-direction: column; gap: 14px; border: 1px solid #2e2e32; }
+  .modal h3 { font-size: 15px; color: #fff; font-weight: 500; }
+  .modal input { background: #28282c; border: 1px solid #3a3a3e; border-radius: 9px; color: #fff; font-size: 13px; padding: 10px 12px; width: 100%; outline: none; font-family: inherit; transition: border-color 0.15s; }
+  .modal input:focus { border-color: #555; }
+  .modal input::placeholder { color: #555; }
+  .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .type-opt { padding: 9px 10px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s, opacity 0.15s; opacity: 0.5; text-align: center; }
+  .type-opt.selected { border-color: #fff; opacity: 1; }
+  .type-opt.strategy { background: #2563EB; color: #fff; }
+  .type-opt.perf { background: #EA580C; color: #fff; }
+  .type-opt.process { background: #16A34A; color: #fff; }
+  .type-opt.demo { background: #b5d60a; color: #1a2500; }
+  .modal-actions { display: flex; gap: 8px; }
+  .btn-cancel { flex: 1; background: #28282c; border: none; border-radius: 9px; color: #888; font-size: 13px; padding: 11px; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .btn-add { flex: 2; background: #fff; border: none; border-radius: 9px; color: #111; font-size: 13px; font-weight: 600; padding: 11px; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .btn-cancel:hover { background: #333; }
+  .btn-add:hover { background: #e5e5e5; }
+
+  @media (max-width: 640px) {
+    .grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .header { flex-direction: column; }
+    body { padding: 20px 12px 40px; }
+    .title { font-size: 20px; }
+  }
+  @media (max-width: 360px) {
+    .grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="title">Календарь регулярных <b>событий</b></div>
+    <div class="legend">
+      <span class="litem"><span class="ldot" style="background:#2563EB"></span>Стратегия и планы</span>
+      <span class="litem"><span class="ldot" style="background:#EA580C"></span>Performance review</span>
+      <span class="litem"><span class="ldot" style="background:#16A34A"></span>Дизайн-процессы</span>
+      <span class="litem"><span class="ldot" style="background:#b5d60a"></span>Демо</span>
+    </div>
+  </div>
+  <div class="grid" id="cal"></div>
+</div>
+
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Новое событие</h3>
+    <input type="text" id="event-input" placeholder="Название события" maxlength="40" />
+    <div class="type-grid">
+      <div class="type-opt strategy selected" data-type="strategy">Стратегия</div>
+      <div class="type-opt perf" data-type="perf">Performance</div>
+      <div class="type-opt process" data-type="process">Процессы</div>
+      <div class="type-opt demo" data-type="demo">Демо</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="modal-cancel">Отмена</button>
+      <button class="btn-add" id="modal-confirm">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "design-calendar-v1";
+
+const defaultData = [
+  { name: "Январь", events: [{ label: "Демо стримов", type: "demo" }] },
+  { name: "Февраль", events: [] },
+  { name: "Март", events: [
+    { label: "Health-check", type: "process" },
+    { label: "Дизайн-регресс", type: "process" },
+    { label: "Квартальное планирование", type: "strategy" },
+    { label: "Чек OKR", type: "strategy" },
+  ]},
+  { name: "Апрель", events: [{ label: "Демо стримов", type: "demo" }] },
+  { name: "Май", events: [{ label: "Performance review", type: "perf" }] },
+  { name: "Июнь", events: [
+    { label: "Health-check", type: "process" },
+    { label: "Дизайн-регресс", type: "process" },
+    { label: "Квартальное планирование", type: "strategy" },
+    { label: "Чек OKR", type: "strategy" },
+  ]},
+  { name: "Июль", events: [{ label: "Демо стримов", type: "demo" }] },
+  { name: "Август", events: [] },
+  { name: "Сентябрь", events: [
+    { label: "Health-check", type: "process" },
+    { label: "Дизайн-регресс", type: "process" },
+    { label: "Квартальное планирование", type: "strategy" },
+    { label: "Чек OKR", type: "strategy" },
+  ]},
+  { name: "Октябрь", events: [{ label: "Демо стримов", type: "demo" }] },
+  { name: "Ноябрь", events: [
+    { label: "Performance review", type: "perf" },
+    { label: "Составление годового OKR", type: "strategy" },
+  ]},
+  { name: "Декабрь", events: [
+    { label: "Health-check", type: "process" },
+    { label: "Дизайн-регресс", type: "process" },
+    { label: "Квартальное планирование", type: "strategy" },
+    { label: "Демо итогов года", type: "demo" },
+  ]},
+];
+
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultData));
+  } catch(e) {
+    return JSON.parse(JSON.stringify(defaultData));
+  }
+}
+
+function saveData() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+let data = loadData();
+let activeMonth = null;
+let selectedType = "strategy";
+
+function render() {
+  const cal = document.getElementById("cal");
+  cal.innerHTML = "";
+  data.forEach((m, mi) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const eventsHtml = m.events.map((e, ei) =>
+      `<div class="tag tag-${e.type}">
+        <span class="tag-label">${e.label}</span>
+        <button class="tag-del" data-mi="${mi}" data-ei="${ei}" title="Удалить">×</button>
+      </div>`
+    ).join("");
+    card.innerHTML = `
+      <div class="mname">${m.name}</div>
+      <div class="events">${eventsHtml || ''}</div>
+      <button class="add-btn" data-mi="${mi}">+</button>
+    `;
+    cal.appendChild(card);
+  });
+
+  cal.querySelectorAll(".add-btn").forEach(btn => {
+    btn.addEventListener("click", () => openModal(+btn.dataset.mi));
+  });
+  cal.querySelectorAll(".tag-del").forEach(btn => {
+    btn.addEventListener("click", () => {
+      data[+btn.dataset.mi].events.splice(+btn.dataset.ei, 1);
+      saveData();
+      render();
+    });
+  });
+}
+
+function openModal(mi) {
+  activeMonth = mi;
+  document.getElementById("modal-title").textContent = `Событие — ${data[mi].name}`;
+  document.getElementById("event-input").value = "";
+  selectedType = "strategy";
+  document.querySelectorAll(".type-opt").forEach(o => o.classList.toggle("selected", o.dataset.type === selectedType));
+  document.getElementById("modal").classList.add("open");
+  setTimeout(() => document.getElementById("event-input").focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.remove("open");
+  activeMonth = null;
+}
+
+document.querySelectorAll(".type-opt").forEach(opt => {
+  opt.addEventListener("click", () => {
+    selectedType = opt.dataset.type;
+    document.querySelectorAll(".type-opt").forEach(o => o.classList.toggle("selected", o === opt));
+  });
+});
+
+document.getElementById("modal-cancel").addEventListener("click", closeModal);
+document.getElementById("modal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+document.getElementById("modal-confirm").addEventListener("click", () => {
+  const val = document.getElementById("event-input").value.trim();
+  if (!val || activeMonth === null) return;
+  data[activeMonth].events.push({ label: val, type: selectedType });
+  saveData();
+  closeModal();
+  render();
+});
+
+document.getElementById("event-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("modal-confirm").click();
+  if (e.key === "Escape") closeModal();
+});
+
+render();
+</script>
+</body>
+</html>
